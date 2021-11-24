@@ -1,0 +1,35 @@
+name: Mirror
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get missing tags
+        id: tags
+        uses: s6on/mirror-docker-tags-action@v1.0.0
+        with:
+          from: ubuntu[latest,20.04,18.04]
+          to: ${{ github.repository_owner }}
+          extra-registry: ghcr.io
+          updateAll: ${{ github.event_name != 'schedule' }}
+    outputs:
+      matrix: ${{ steps.tags.outputs.matrix }}
+  build-push:
+    runs-on: ubuntu-latest
+    needs: setup-matrix
+    if: ${{ needs.setup-matrix.outputs.matrix }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
+    name: ${{ matrix.base_img }}
